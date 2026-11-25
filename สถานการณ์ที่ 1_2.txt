@@ -1,0 +1,31 @@
+title Flash Sale 1000 สิทธิ์
+
+participant "Client\n (Web/Mobile)" as User
+participant FrontEnd
+participant API Gateway
+participant Cache
+participant Message queue
+participant Worker / Coupon Consumer
+participant Database
+
+
+User->FrontEnd:User กดรับ Coupon
+FrontEnd->API Gateway:Send request to Backend
+API Gateway->API Gateway:ตรวจสอบ Authentication, Rate Limit และ User Eligibility
+API Gateway->Cache:Redis ตรวจสอบและจอง Coupon แบบ Atomic\ncondition\n-ตรวจสอบว่าจำนวน Coupon >0 (1000)\n-ตรวจสอบว่า User คนนี้ยังไม่เคยจอง Coupon ใน Campaign นี้
+Cache->Cache: Atomic Operation (ตัด coupon อัตโนมัติ)
+
+API Gateway<--Cache:Send Response
+API Gateway->Message queue:ส่ง Request
+API Gateway<--Message queue:Send Response
+FrontEnd<--API Gateway:Send message to Frontend
+User<-FrontEnd:Display message (pending/ processing)
+Message queue->Worker / Coupon Consumer:ตรวจสอบข้อมูล Reservation และบันทึก status
+Worker / Coupon Consumer->Database:บันทึกข้อมูลลง Database
+Worker / Coupon Consumer<--Database:บันทึกข้อมูลสำเร็จ
+
+Message queue<-Worker / Coupon Consumer:Send Response
+API Gateway<--Message queue:Send Response
+API Gateway->API Gateway:Check status
+FrontEnd<--API Gateway:Send Response
+User<--FrontEnd:Display status Success/Fail
